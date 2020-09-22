@@ -1,0 +1,37 @@
+#!/bin/bash 
+
+# Redirect output to log file
+rm build.log
+exec > >(tee -i build.log)
+exec 2>&1
+
+CERT=MiraySoftwareAG2020.DER.cer
+BRANCH=15.2
+OUTNAME=shim_mirayx64
+
+
+rm -rf shim
+rm BOOTX64.EFI
+rm $OUTNAME.efi
+rm $OUTNAME.cab
+rm $OUTNAME.cksum
+
+
+# git clone -b $BRANCH https://github.com/MiraySoftware/shim.git shim
+git clone -b $BRANCH https://github.com/rhboot/shim.git shim
+cp $CERT shim/
+
+cd shim
+export VENDOR_CERT_FILE=$CERT
+export LIBDIR=/usr/lib
+export EFI_PATH=$LIBDIR
+export DEFAULT_LOADER=grub.efi
+make ENABLE_HTTPBOOT=1
+
+cp shimx64.efi ../$OUTNAME.efi
+cd ..
+
+sha256sum -b $OUTNAME.efi > $OUTNAME.cksum
+
+cp $OUTNAME.efi BOOTX64.EFI
+lcab BOOTX64.EFI $OUTNAME.cab
