@@ -1,0 +1,155 @@
+The Kernel Lockdown feature is designed to prevent both direct
+and indirect access to a running kernel image, attempting to
+protect against unauthorized modification of the kernel image and
+to prevent access to security and cryptographic data located in
+kernel memory, whilst still permitting driver modules to be
+loaded.
+
+Lockdown is typically enabled during boot and may be terminated,
+if configured, by typing a special key combination on a directly
+attached physical keyboard.
+
+If a prohibited or restricted feature is accessed or used, the
+kernel will emit a message that looks like:
+
+        Lockdown: X: Y is restricted, see man kernel_lockdown.7
+
+where X indicates the process name and Y indicates what is
+restricted.
+
+On an EFI-enabled x86 or arm64 machine, lockdown will be
+automatically enabled if the system boots in EFI Secure Boot
+mode.
+
+If the kernel is appropriately configured, lockdown may be lifted
+by typing the appropriate sequence on a directly attached
+physical keyboard.  For x86 machines, this is SysRq+x.
+
+### Coverage
+
+
+<<<< INCLUDE STARTING THIS
+
+
+Information about Symobi is marked with '==>', the other parts are taken from the Coverage section of
+the kernel_lockdown man page
+
+Overview:
+The Symobi OS microkernel (Sphere) does not load any external components into kernel memory.
+In order to start the rest of the system, it needs to start user mode code (basic drivers
+and services), which is located in the "core file system". It is located in one blob/file,
+which is secured by SHA256 hash. This hash is embedded in the signed kernel image (both are
+built in the same process). The kernel will then validate the core file system with this hash
+before accessing it, therefore maintaining the chain of trust.
+
+Access to kernel memory (direct and indirect) is restricted to the microkernel only. All
+drivers run as user space processes, hence with zero access to kernel memory. Direct access
+to hardware resources other than memory (register space) is restricted to drivers loaded
+from the (verified) core file system.
+
+The above mechanisms are always in effect, independent from whether SecureBoot is active or not.
+
+
+> When lockdown is in effect, a number of features are disabled or
+> have their use restricted.  This includes special device files
+> and kernel services that allow direct access of the kernel image:
+> 
+>        /dev/mem
+>        /dev/kmem
+>        /dev/kcore
+>        /dev/ioports
+>        BPF
+>        kprobes
+> 
+> and the ability to directly configure and control devices, so as
+> to prevent the use of a device to access or modify a kernel
+> image:                        
+    
+Special device files or other interfaces to access kernel memory are not provided.
+IO port access is only granted for drivers from the core file system.
+
+> * The use of module parameters that directly specify hardware
+>   parameters to drivers through the kernel command line or when
+>   loading a module.
+
+Directly specifying hardware parameters is not supported for any driver.
+Hardware drivers are configured through PCI or ACPI information or through
+fixed information stored in the core file system.     
+
+> * The use of direct PCI BAR access.
+
+Direct PCI BAR access is only allowed for hardware drivers in the core file system.
+
+> * The use of the ioperm and iopl instructions on x86.
+
+ioperm and iopl functions are not available in Symobi.
+
+> * The use of the KD*IO console ioctls.
+
+KD*IO console ioctls or similar functionality is not available in Symobi.
+
+> * The use of the TIOCSSERIAL serial ioctl.
+
+Serial port configuration is not supported .
+
+> * The alteration of MSR registers on x86.
+
+Access to MSRs is restricted to the kernel.
+
+> * The replacement of the PCMCIA CIS.
+
+replacement of the PCMCIA CIS is not supported by Symobi.
+
+> * The overriding of ACPI tables.
+
+overriding of ACPI tables is not supported by Symobi.
+
+> * The use of ACPI error injection.
+
+ACPI error injection is not supported by Symobi.
+
+> * The specification of the ACPI RDSP address.
+
+specification of the ACPI RDSP address is not supported in Symobi.
+
+> * The use of ACPI custom methods.
+
+Custom ACPI methods are not supported by Symobi.
+
+> Certain facilities are restricted:
+>
+> * Only validly signed modules may be loaded (waived if the module
+>   file being loaded is vouched for by IMA appraisal).
+
+Kernel modules as in Linux are not supported in Symobi. 
+Hardware access is only allowed for drivers in the core file system.
+
+> * Only validly signed binaries may be kexec'd (waived if the
+    binary image file to be executed is vouched for by IMA
+    appraisal).
+  
+Kexec (or similar functionality) is not supported by Symobi.
+
+> * Unencrypted hibernation/suspend to swap are disallowed as the
+>   kernel image is saved to a medium that can then be accessed.
+
+Hibernation is not supported by Symobi.
+
+> * Use of debugfs is not permitted as this allows a whole range of
+>   actions including direct configuration of, access to and
+>   driving of hardware.
+  
+debugfs is not supported in Symobi.
+Some hardware drivers can output current configuration information, but
+configuration or custom commands are not supported.
+
+> * IMA requires the addition of the "secure_boot" rules to the
+>   policy, whether or not they are specified on the command line,
+>   for both the built-in and custom policies in secure boot
+>   lockdown mode.
+
+We currently automatically inject a boot parameter through the multiboot
+command if SecureBoot is active and grub is locked down.
+This forces the use of an IOMMU.
+All other restrictions are always active, even if SecureBoot is not enabled.
+
